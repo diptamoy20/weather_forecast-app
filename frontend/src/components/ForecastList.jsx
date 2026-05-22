@@ -6,8 +6,6 @@ const CONDITION_EMOJI = {
 export default function ForecastList({ forecast, units }) {
   const unit = units === "metric" ? "°C" : "°F";
   const windUnit = units === "metric" ? "m/s" : "mph";
-
-  console.log(forecast,'forecast');
   
 
   return (
