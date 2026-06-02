@@ -1,5 +1,6 @@
 import httpx
 from app.config import settings
+from datetime import datetime, timezone
 
 OPENWEATHER_BASE = "https://api.openweathermap.org"
 
@@ -36,15 +37,36 @@ def _format_response(current: dict, forecast: dict) -> dict:
     """Transforms raw API data into a clean response."""
     location = current.get("name", "Unknown")
     country = current.get("sys", {}).get("country", "")
+    timezone_offset = current.get("timezone", 0)
+    coordinates = current.get("coord", {})
+    main = current.get("main", {})
+    wind = current.get("wind", {})
+    clouds = current.get("clouds", {})
+    sys = current.get("sys", {})
+
+    sunrise = sys.get("sunrise")
+    sunset = sys.get("sunset")
 
     current_weather = {
-        "temp": round(current["main"]["temp"]),
-        "feels_like": round(current["main"]["feels_like"]),
+        "temp": round(main.get("temp", 0)),
+        "feels_like": round(main.get("feels_like", 0)),
         "condition": current["weather"][0]["main"],
         "description": current["weather"][0]["description"].capitalize(),
         "icon": current["weather"][0]["icon"],
-        "humidity": current["main"]["humidity"],
-        "wind": round(current["wind"]["speed"]),
+        "humidity": main.get("humidity"),
+        "wind": round(wind.get("speed", 0)),
+        "wind_gust": round(wind["gust"], 1) if wind.get("gust") is not None else None,
+        "pressure": main.get("pressure"),
+        "sea_level": main.get("sea_level"),
+        "ground_level": main.get("grnd_level"),
+        "visibility": current.get("visibility"),
+        "cloudiness": clouds.get("all"),
+        "sunrise": sunrise,
+        "sunset": sunset,
+        "sunrise_local": _format_unix_local(sunrise, timezone_offset),
+        "sunset_local": _format_unix_local(sunset, timezone_offset),
+        "rain_1h": current.get("rain", {}).get("1h"),
+        "snow_1h": current.get("snow", {}).get("1h"),
     }
 
     # Group forecast by day, pick the midday reading (or first available)
@@ -56,26 +78,48 @@ def _format_response(current: dict, forecast: dict) -> dict:
         if date not in days_seen or hour == "12:00:00":
             days_seen[date] = item
 
-    # Skip today, take next 3 days
-    from datetime import datetime, timezone
+    # Skip today, then take up to 7 upcoming days
     today = datetime.now(timezone.utc).strftime("%Y-%m-%d")
     daily_entries = [v for k, v in sorted(days_seen.items()) if k != today][:7]
 
     forecast_list = []
     for i, entry in enumerate(daily_entries):
+        entry_main = entry.get("main", {})
+        entry_wind = entry.get("wind", {})
         forecast_list.append({
             "day": f"Day {i + 1}",
             "date": entry["dt_txt"].split(" ")[0],
-            "temp": round(entry["main"]["temp"]),
+            "temp": round(entry_main.get("temp", 0)),
+            "temp_min": round(entry_main["temp_min"]) if entry_main.get("temp_min") is not None else None,
+            "temp_max": round(entry_main["temp_max"]) if entry_main.get("temp_max") is not None else None,
             "condition": entry["weather"][0]["main"],
             "description": entry["weather"][0]["description"].capitalize(),
             "icon": entry["weather"][0]["icon"],
-            "humidity": entry["main"]["humidity"],
-            "wind": round(entry["wind"]["speed"]),
+            "humidity": entry_main.get("humidity"),
+            "wind": round(entry_wind.get("speed", 0)),
+            "wind_gust": round(entry_wind["gust"], 1) if entry_wind.get("gust") is not None else None,
+            "pressure": entry_main.get("pressure"),
+            "visibility": entry.get("visibility"),
+            "cloudiness": entry.get("clouds", {}).get("all"),
+            "pop": round(entry.get("pop", 0) * 100),
+            "rain_3h": entry.get("rain", {}).get("3h"),
+            "snow_3h": entry.get("snow", {}).get("3h"),
         })
 
     return {
         "location": f"{location}, {country}" if country else location,
+        "timezone_offset": timezone_offset,
+        "coordinates": {
+            "lat": coordinates.get("lat"),
+            "lon": coordinates.get("lon"),
+        },
         "current": current_weather,
         "forecast": forecast_list,
     }
+
+
+def _format_unix_local(timestamp: int | None, tz_offset_seconds: int = 0) -> str | None:
+    if timestamp is None:
+        return None
+    local_ts = timestamp + tz_offset_seconds
+    return datetime.utcfromtimestamp(local_ts).strftime("%I:%M %p").lstrip("0")

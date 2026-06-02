@@ -31,7 +31,7 @@ export default function MapView({ selectedLocation, onMapClick }) {
     });
 
     mapInstanceRef.current = map;
-  }, []);
+  }, [onMapClick]);
 
   // Re-bind click handler when callback reference changes
   useEffect(() => {

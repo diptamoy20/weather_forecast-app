@@ -36,7 +36,7 @@ export default function SearchBar({ onLocationSelect }) {
           type="text"
           value={query}
           onChange={(e) => setQuery(e.target.value)}
-          placeholder="Search city or address..."
+          placeholder="Search for a location..."
           className="search-input"
           aria-label="Search location"
         />
