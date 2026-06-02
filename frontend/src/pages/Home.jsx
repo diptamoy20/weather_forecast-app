@@ -58,10 +58,6 @@ export default function Home({ darkMode, toggleDark }) {
     localStorage.setItem(STORAGE_KEY, JSON.stringify(loc));
   }, []);
 
-  function handleUnitToggle() {
-    setUnits((prev) => (prev === "metric" ? "imperial" : "metric"));
-  }
-
   return (
     <div className="home">
       {/* Header */}
@@ -74,9 +70,22 @@ export default function Home({ darkMode, toggleDark }) {
           {weatherData?.location || selectedLocation?.name || "Search a location"}
         </div>
         <div className="header-controls">
-          <button className="unit-toggle" onClick={handleUnitToggle}>
-            {units === "metric" ? "°C" : "°F"}
-          </button>
+          <div className="unit-toggle-group" role="group" aria-label="Temperature unit">
+            <button
+              className={`unit-toggle ${units === "metric" ? "active" : ""}`}
+              onClick={() => setUnits("metric")}
+              aria-pressed={units === "metric"}
+            >
+              °C
+            </button>
+            <button
+              className={`unit-toggle ${units === "imperial" ? "active" : ""}`}
+              onClick={() => setUnits("imperial")}
+              aria-pressed={units === "imperial"}
+            >
+              °F
+            </button>
+          </div>
           <button className="dark-toggle" onClick={toggleDark}>
             {darkMode ? "☀" : "🌙"}
           </button>
